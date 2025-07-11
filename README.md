@@ -11,7 +11,7 @@
 1. Open Termux app
 2. Run these commands sequentially:
 ```bash
-curl -o optimizer_root.sh https://github.com/ElxSnowkk/Shell-optimization-for-Android.git
+curl -o optimizer_root.sh https://github.com/ElxSnowkk/Shell-optimization-for-Android/blob/main/optimizer_root.sh
 chmod +x optimizer_root.sh
 su -c ./optimizer_root.sh
 ```
