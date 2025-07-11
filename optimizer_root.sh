@@ -52,24 +52,40 @@ com.google.android.apps.meetings
 
 ROOT_AVAILABLE=false
 check_root() {
-    if [ -f /sbin/su ] || [ -f /system/xbin/su ] || [ -f /system/bin/su ] || 
-       [ -f /sbin/ksu ] || [ -f /system/xbin/ksu ] || [ -f /system/bin/ksu ] ||
-       [ -f /data/adb/ksud ] || [ -d /data/adb/ksu ]; then
-        if su -c "id" 2>/dev/null | grep -q "uid=0" || ksu -c "id" 2>/dev/null | grep -q "uid=0"; then
-            return 0
-        fi
-    fi
-    
-    if [ -f /sbin/.magisk/busybox/su ] || [ -f /data/adb/magisk/busybox/su ] ||
-       [ -f /system/app/SuperSU.apk ] || [ -f /system/app/Superuser.apk ]; then
+    if su -c "id" 2>/dev/null | grep -q "uid=0"; then
         return 0
     fi
     
-    if command -v su >/dev/null 2>&1 || command -v ksu >/dev/null 2>&1; then
-        if su -c "id" 2>/dev/null | grep -q "uid=0" || 
-           ksu -c "id" 2>/dev/null | grep -q "uid=0"; then
-            return 0
-        fi
+    if ksu -c "id" 2>/dev/null | grep -q "uid=0"; then
+        return 0
+    fi
+    
+    if /sbin/su -c "id" 2>/dev/null | grep -q "uid=0"; then
+        return 0
+    fi
+    
+    if /system/xbin/su -c "id" 2>/dev/null | grep -q "uid=0"; then
+        return 0
+    fi
+    
+    if /system/bin/su -c "id" 2>/dev/null | grep -q "uid=0"; then
+        return 0
+    fi
+    
+    if [ -f /data/adb/magisk/busybox/su ]; then
+        /data/adb/magisk/busybox/su -c "id" | grep -q "uid=0" && return 0
+    fi
+    
+    if [ -f /sbin/magisk ]; then
+        /sbin/magisk -c id | grep -q "uid=0" && return 0
+    fi
+    
+    if [ -f /data/adb/ksud ]; then
+        /data/adb/ksud -c id | grep -q "uid=0" && return 0
+    fi
+    
+    if command -v su >/dev/null 2>&1; then
+        su -c "id" | grep -q "uid=0" && return 0
     fi
     
     return 1
@@ -77,9 +93,9 @@ check_root() {
 
 if check_root; then
   ROOT_AVAILABLE=true
-  log "Root access confirmed"
+  echo "Root access confirmed" | tee -a $LOG_FILE
 else
-  log "Root not available - limited functionality"
+  echo "Root not available - limited functionality" | tee -a $LOG_FILE
 fi
 
 OPTIMIZED_APPS=""
@@ -433,7 +449,6 @@ debloat_system() {
   removed_count=0
   for pkg in $bloat_list; do
     [ -z "$pkg" ] && continue
-    [[ "$pkg" == \#* ]] && continue
     
     if pm list packages | grep -q "$pkg"; then
       if ! is_protected "$pkg"; then
@@ -599,58 +614,4 @@ generate_report() {
   echo "- Games optimized: $(echo -e "$GAMES_OPTIMIZED" | wc -l)"
   echo ""
   
-  if [ -n "$ERRORS_FOUND" ]; then
-    echo "⚠️ ERRORS ENCOUNTERED:"
-    echo -e "$ERRORS_FOUND" | head -n 10
-    [ $(echo -e "$ERRORS_FOUND" | wc -l) -gt 10 ] && echo "... (more errors in full log)"
-    echo ""
-  fi
-  
-  if $ROOT_AVAILABLE && [ -n "$ROOT_OPERATIONS" ]; then
-    echo "🔓 ROOT OPERATIONS PERFORMED:"
-    echo -e "$ROOT_OPERATIONS"
-    echo ""
-  fi
-  
-  echo "🕒 TOTAL TIME: $SECONDS seconds"
-  echo "#######################################################"
-}
-
-{
-  SECONDS=0
-  clean_storage
-  manage_memory
-  optimize_cache
-  debloat_system
-  optimize_gaming
-  system_tweaks
-  kernel_tweaks
-  root_optimizations
-  generate_report
-} | tee -a $LOG_FILE
-
-echo "Full report saved to: $LOG_FILE"
-echo ""
-
-# Reinício do sistema
-echo "ShellOp- Reset phone? (y or n)"
-read -r answer
-
-case "$answer" in
-  [Yy]*)
-    echo "Initiating system reboot..."
-    echo "Device will reboot in 5 seconds..."
-    sleep 5
-    
-    if $ROOT_AVAILABLE; then
-      su -c "reboot" || ksu -c "reboot"
-    else
-      echo "Root access required for reboot!"
-      echo "Please reboot your device manually"
-    fi
-    ;;
-  *)
-    echo "Optimization complete without reboot"
-    echo "You may need to reboot manually to apply all changes"
-    ;;
-esac
+  if [ -n "$ERRORS_FOUND" ]; 
