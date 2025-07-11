@@ -588,7 +588,7 @@ root_optimizations() {
     
     # CPU/GPU Boost
     [ -w /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ] && \
-      su -c "echo performance > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+      su -c "echo schedutil > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
     [ -w /sys/class/kgsl/kgsl-3d0/devfreq/governor ] && \
       su -c "echo performance > /sys/class/kgsl/kgsl-3d0/devfreq/governor"
     ROOT_OPERATIONS="${ROOT_OPERATIONS}CPU/GPU performance mode\n"
