@@ -8,10 +8,8 @@ echo "##         Complete All-in-One Optimization System   ##"
 echo "#######################################################"
 echo ""
 
-# Settings
 LOG_FILE="/sdcard/AndroidOptimizer.log"
 PROTECTED_APPS="
-# Essential Google Services
 com.google.android.gms
 com.google.android.gsf
 com.android.vending
@@ -19,8 +17,6 @@ com.google.android.syncadapters.contacts
 com.google.android.backuptransport
 com.google.android.onetimeinitializer
 com.google.android.partnersetup
-
-# Communication
 com.whatsapp
 com.instagram.android
 com.facebook.katana
@@ -28,29 +24,19 @@ com.facebook.orca
 org.telegram.messenger
 com.signal
 com.discord
-
-# Banking/Finance
 com.bankinter.launcher
 com.lacaixa.mobile.android.newwapicon
 com.bbva.bbvacontigo
 com.santander.app
 com.paypal.android.p2pmobile
-
-# Productivity
 com.microsoft.office.word
 com.dropbox.android
 com.lastpass.lpandroid
 com.termux
-
-# Security
 com.avast.android.mobilesecurity
 com.bitdefender.security
-
-# Transportation
 com.ubercab
 com.waze
-
-# Google Apps
 com.google.android.apps.maps
 com.google.android.apps.photos
 com.google.android.youtube
@@ -65,11 +51,37 @@ com.google.android.apps.meetings
 "
 
 ROOT_AVAILABLE=false
-if su -c "id" | grep -q "uid=0"; then
+check_root() {
+    if [ -f /sbin/su ] || [ -f /system/xbin/su ] || [ -f /system/bin/su ] || 
+       [ -f /sbin/ksu ] || [ -f /system/xbin/ksu ] || [ -f /system/bin/ksu ] ||
+       [ -f /data/adb/ksud ] || [ -d /data/adb/ksu ]; then
+        if su -c "id" 2>/dev/null | grep -q "uid=0" || ksu -c "id" 2>/dev/null | grep -q "uid=0"; then
+            return 0
+        fi
+    fi
+    
+    if [ -f /sbin/.magisk/busybox/su ] || [ -f /data/adb/magisk/busybox/su ] ||
+       [ -f /system/app/SuperSU.apk ] || [ -f /system/app/Superuser.apk ]; then
+        return 0
+    fi
+    
+    if command -v su >/dev/null 2>&1 || command -v ksu >/dev/null 2>&1; then
+        if su -c "id" 2>/dev/null | grep -q "uid=0" || 
+           ksu -c "id" 2>/dev/null | grep -q "uid=0"; then
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+if check_root; then
   ROOT_AVAILABLE=true
+  log "Root access confirmed"
+else
+  log "Root not available - limited functionality"
 fi
 
-# Report variables
 OPTIMIZED_APPS=""
 BLOAT_REMOVED=""
 GAMES_OPTIMIZED=""
@@ -79,41 +91,33 @@ STORAGE_FREED=""
 MEMORY_FREED=""
 BACKGROUND_KILLED=""
 
-# Logging function
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a $LOG_FILE
 }
 
-# Protected app check
 is_protected() {
   echo "$PROTECTED_APPS" | grep -q "$1"
 }
 
-# 1. Advanced Storage Cleaning
 clean_storage() {
   log "🧹 STARTING STORAGE CLEANING"
   
-  # Temp cache cleaning
   cache_size=$(du -sh /data/local/tmp 2>/dev/null | cut -f1 || echo "0MB")
   rm -rf /data/local/tmp/* 2>/dev/null
   log " ✔ Temp cache cleared: ${cache_size:-0MB} freed"
   
-  # Thumbnails cleaning
   thumb_size=$(du -sh /sdcard/DCIM/.thumbnails 2>/dev/null | cut -f1 || echo "0MB")
   rm -rf /sdcard/DCIM/.thumbnails/* 2>/dev/null
   log " ✔ Thumbnails cleared: ${thumb_size:-0MB} freed"
   
-  # Temp files cleaning
   log_files=$(find /sdcard/ -name "*.log" -o -name "*.tmp" 2>/dev/null | wc -l)
   find /sdcard/ -name "*.log" -o -name "*.tmp" -delete 2>/dev/null
   log " ✔ Temp files removed: $log_files files"
   
-  # Empty directories cleaning
   empty_dirs=$(find /sdcard/ -type d -empty 2>/dev/null | wc -l)
   find /sdcard/ -type d -empty -delete 2>/dev/null
   log " ✔ Empty directories removed: $empty_dirs dirs"
   
-  # Storage calculation
   before_clean=$(df /sdcard 2>/dev/null | tail -1 | awk '{print $4}')
   sync
   after_clean=$(df /sdcard 2>/dev/null | tail -1 | awk '{print $4}')
@@ -125,20 +129,18 @@ clean_storage() {
   log "✅ STORAGE CLEANED - ${freed_space}KB freed"
 }
 
-# 2. RAM Memory Management
 manage_memory() {
   log "🧠 OPTIMIZING RAM MEMORY"
   
-  # Memory cache cleaning
   if $ROOT_AVAILABLE; then
-    su -c "sync; echo 3 > /proc/sys/vm/drop_caches"
+    su -c "sync; echo 3 > /proc/sys/vm/drop_caches" 2>/dev/null || 
+    ksu -c "sync; echo 3 > /proc/sys/vm/drop_caches" 2>/dev/null
     log " ✔ Memory cache cleared (root)"
   else
     sync
     log " ℹ️ Cache cleaning requires root"
   fi
   
-  # Background processes killing
   background_count=0
   for pkg in $(pm list packages -3 | cut -d':' -f2); do
     if ! is_protected "$pkg"; then
@@ -149,11 +151,9 @@ manage_memory() {
   done
   log " ✔ Processes killed: $background_count apps"
   
-  # Background process limit
-  settings put global background_process_limit 3
+  settings put global background_process_limit 3 2>/dev/null
   log " ✔ Background limit: 3 processes"
   
-  # Memory status
   mem_info=$(free -m 2>/dev/null || echo "0 0 0 0")
   total_mem=$(echo "$mem_info" | awk 'NR==2{print $2}')
   free_mem=$(echo "$mem_info" | awk 'NR==2{print $4}')
@@ -169,7 +169,6 @@ manage_memory() {
   log "✅ MEMORY OPTIMIZED - ${free_mem}MB free"
 }
 
-# 3. Smart Cache Optimization
 optimize_cache() {
   log "🔄 STARTING APP CACHE CLEANING"
   total_apps=0
@@ -198,21 +197,9 @@ optimize_cache() {
   log "✅ CACHE CLEANING COMPLETE - $total_apps apps processed"
 }
 
-# 4. Advanced Bloatware Removal
 debloat_system() {
   log "🗑️ STARTING BLOATWARE REMOVAL"
   bloat_list="
-  # Bloat original
-  com.facebook.system com.facebook.appmanager
-  com.miui.analytics com.xiaomi.mipicks
-  com.google.android.apps.turbo com.android.wallpaperbackup
-  com.samsung.android.bixby.agent com.samsung.android.game.gos
-  com.huawei.android.hwpay com.huawei.hwid
-  com.oppo.oppopowermonitor com.oppo.engineermode
-  com.vivo.browser com.vivo.assistant
-  com.realme.wellbeing com.oneplus.brickmode
-
-  # Nova lista de bloatware
   android.auto_generated_characteristics_rro
   android.auto_generated_rro_product__
   android.auto_generated_rro_vendor__
@@ -242,7 +229,6 @@ debloat_system() {
   com.google.android.apps.tachyon
   com.google.android.apps.youtube.music
   com.google.android.feedback
-  com.google.android.gm
   com.google.android.gms.supervision
   com.google.android.googlequicksearchbox
   com.google.android.healthconnect.controller
@@ -471,7 +457,6 @@ debloat_system() {
   log "✅ DEBLOAT COMPLETE - $removed_count items processed"
 }
 
-# 5. Gaming Optimization
 optimize_gaming() {
   log "🎮 STARTING GAMING OPTIMIZATION"
   games=$(pm list packages | cut -d':' -f2 | grep -Ei 'game|mlbb|cod|pubg|freefire|amongus|genshin|fortnite')
@@ -487,7 +472,8 @@ optimize_gaming() {
       if $ROOT_AVAILABLE; then
         pid=$(pidof "$game")
         if [ -n "$pid" ]; then
-          su -c "echo -17 > /proc/$pid/oom_adj" 2>/dev/null
+          su -c "echo -17 > /proc/$pid/oom_adj" 2>/dev/null || 
+          ksu -c "echo -17 > /proc/$pid/oom_adj" 2>/dev/null
         fi
       fi
       
@@ -505,56 +491,43 @@ optimize_gaming() {
   log "✅ GAMING OPTIMIZATION COMPLETE"
 }
 
-# 6. System Tweaks
 system_tweaks() {
   log "⚙️ APPLYING SYSTEM TWEAKS"
   
-  # Performance improvements
   settings put global window_animation_scale 0.4
   settings put global transition_animation_scale 0.4
   settings put global animator_duration_scale 0.4
-  
-  # Memory improvements
   settings put global app_standby_enabled 1
   settings put global app_ops_standby 1
   settings put global memc_opt_enable 1
   settings put global background_process_limit 4
-  
-  # Network and background
   cmd netpolicy set restrict-background true 2>/dev/null
   settings put global restricted_device_performance 1
   settings put global restrict_background_network 1
-  
-  # Battery saving
   settings put global adaptive_battery_management_enabled 1
   settings put global battery_saver_constants "vibration_disabled=true"
   
   log "✅ SYSTEM TWEAKS APPLIED"
 }
 
-# 7. Kernel Tweaks
 kernel_tweaks() {
   log "🔧 APPLYING KERNEL TWEAKS"
   
-  # Swappiness
   if [ -w /proc/sys/vm/swappiness ]; then
     echo 5 > /proc/sys/vm/swappiness
     log " ✔ Swappiness set to 5"
   fi
   
-  # Cache pressure
   if [ -w /proc/sys/vm/vfs_cache_pressure ]; then
     echo 40 > /proc/sys/vm/vfs_cache_pressure
     log " ✔ Cache pressure set to 40"
   fi
   
-  # Scheduler
   if [ -w /sys/block/mmcblk0/queue/scheduler ]; then
     echo noop > /sys/block/mmcblk0/queue/scheduler
     log " ✔ I/O Scheduler set to noop"
   fi
   
-  # Dirty ratios
   if [ -w /proc/sys/vm/dirty_ratio ]; then
     echo 10 > /proc/sys/vm/dirty_ratio
     echo 5 > /proc/sys/vm/dirty_background_ratio
@@ -564,40 +537,42 @@ kernel_tweaks() {
   log "✅ KERNEL TWEAKS COMPLETE"
 }
 
-# 8. Root Optimizations
 root_optimizations() {
   if $ROOT_AVAILABLE; then
     log "🔥 STARTING ROOT OPTIMIZATIONS"
     
-    # Deep cleaning
-    su -c "rm -rf /cache/* /data/cache/* /data/dalvik-cache/* /data/anr/* /data/tombstones/*" 2>/dev/null && \
-      ROOT_OPERATIONS="${ROOT_OPERATIONS}Deep cache cleaning\n"
+    su -c "rm -rf /cache/* /data/cache/* /data/dalvik-cache/* /data/anr/* /data/tombstones/*" 2>/dev/null || 
+    ksu -c "rm -rf /cache/* /data/cache/* /data/dalvik-cache/* /data/anr/* /data/tombstones/*" 2>/dev/null
+    ROOT_OPERATIONS="${ROOT_OPERATIONS}Deep cache cleaning\n"
     log " ✔ System cache cleaned"
     
-    # App recompilation
-    su -c "cmd package compile -m speed -f -a" 2>/dev/null && \
-      ROOT_OPERATIONS="${ROOT_OPERATIONS}App recompilation\n"
+    su -c "cmd package compile -m speed -f -a" 2>/dev/null || 
+    ksu -c "cmd package compile -m speed -f -a" 2>/dev/null
+    ROOT_OPERATIONS="${ROOT_OPERATIONS}App recompilation\n"
     log " ✔ Apps recompiled"
     
-    # ZRAM optimization
     if [ -b /dev/block/zram0 ]; then
-      su -c "swapoff /dev/block/zram0 && mkswap /dev/block/zram0 && swapon /dev/block/zram0" 2>/dev/null && \
-        ROOT_OPERATIONS="${ROOT_OPERATIONS}ZRAM optimization\n"
+      su -c "swapoff /dev/block/zram0 && mkswap /dev/block/zram0 && swapon /dev/block/zram0" 2>/dev/null || 
+      ksu -c "swapoff /dev/block/zram0 && mkswap /dev/block/zram0 && swapon /dev/block/zram0" 2>/dev/null
+      ROOT_OPERATIONS="${ROOT_OPERATIONS}ZRAM optimization\n"
       log " ✔ ZRAM optimized"
     fi
     
-    # CPU/GPU Boost
-    [ -w /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ] && \
-      su -c "echo schedutil > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
-    [ -w /sys/class/kgsl/kgsl-3d0/devfreq/governor ] && \
-      su -c "echo performance > /sys/class/kgsl/kgsl-3d0/devfreq/governor"
+    [ -w /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ] && 
+      su -c "echo schedutil > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor" 2>/dev/null || 
+      ksu -c "echo schedutil > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor" 2>/dev/null
+    [ -w /sys/class/kgsl/kgsl-3d0/devfreq/governor ] && 
+      su -c "echo performance > /sys/class/kgsl/kgsl-3d0/devfreq/governor" 2>/dev/null || 
+      ksu -c "echo performance > /sys/class/kgsl/kgsl-3d0/devfreq/governor" 2>/dev/null
     ROOT_OPERATIONS="${ROOT_OPERATIONS}CPU/GPU performance mode\n"
     log " ✔ CPU/GPU in performance mode"
     
-    # Network optimization
-    su -c "sysctl -w net.ipv4.tcp_window_scaling=1" 2>/dev/null
-    su -c "sysctl -w net.ipv4.tcp_timestamps=1" 2>/dev/null
-    su -c "sysctl -w net.ipv4.tcp_sack=1" 2>/dev/null
+    su -c "sysctl -w net.ipv4.tcp_window_scaling=1" 2>/dev/null || 
+    ksu -c "sysctl -w net.ipv4.tcp_window_scaling=1" 2>/dev/null
+    su -c "sysctl -w net.ipv4.tcp_timestamps=1" 2>/dev/null || 
+    ksu -c "sysctl -w net.ipv4.tcp_timestamps=1" 2>/dev/null
+    su -c "sysctl -w net.ipv4.tcp_sack=1" 2>/dev/null || 
+    ksu -c "sysctl -w net.ipv4.tcp_sack=1" 2>/dev/null
     ROOT_OPERATIONS="${ROOT_OPERATIONS}Network optimizations\n"
     log " ✔ TCP optimizations applied"
     
@@ -607,7 +582,6 @@ root_optimizations() {
   fi
 }
 
-# 9. Generate Report
 generate_report() {
   echo ""
   echo "#######################################################"
@@ -642,7 +616,6 @@ generate_report() {
   echo "#######################################################"
 }
 
-# Execute all optimizations
 {
   SECONDS=0
   clean_storage
@@ -658,3 +631,26 @@ generate_report() {
 
 echo "Full report saved to: $LOG_FILE"
 echo ""
+
+# Reinício do sistema
+echo "ShellOp- Reset phone? (y or n)"
+read -r answer
+
+case "$answer" in
+  [Yy]*)
+    echo "Initiating system reboot..."
+    echo "Device will reboot in 5 seconds..."
+    sleep 5
+    
+    if $ROOT_AVAILABLE; then
+      su -c "reboot" || ksu -c "reboot"
+    else
+      echo "Root access required for reboot!"
+      echo "Please reboot your device manually"
+    fi
+    ;;
+  *)
+    echo "Optimization complete without reboot"
+    echo "You may need to reboot manually to apply all changes"
+    ;;
+esac
