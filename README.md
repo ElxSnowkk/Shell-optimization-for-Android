@@ -11,7 +11,7 @@
 1. Open Termux app
 2. Run these commands sequentially:
 ```bash
-curl -o optimizer_root.sh https://raw.githubusercontent.com/yourusername/android-optimizer/main/optimizer_root.sh
+curl -o optimizer_root.sh https://github.com/ElxSnowkk/Shell-optimization-for-Android.git
 chmod +x optimizer_root.sh
 su -c ./optimizer_root.sh
 ```
@@ -24,7 +24,7 @@ su -c ./optimizer_root.sh
 
 ### **Installation Method**
 1. Manual download:
-   - Visit: https://github.com/yourusername/android-optimizer
+   - Visit: https://github.com/youru
    - Download `optimizer_adb.sh`
    - Save to device's `/sdcard/` directory
 
