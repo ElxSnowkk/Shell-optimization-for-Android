@@ -24,7 +24,7 @@ su -c ./optimizer_root.sh
 
 ### **Installation Method**
 1. Manual download:
-   - Visit: https://github.com/youru
+   - Visit: https://github.com/ElxSnowkk/Shell-optimization-for-Android
    - Download `optimizer_adb.sh`
    - Save to device's `/sdcard/` directory
 
