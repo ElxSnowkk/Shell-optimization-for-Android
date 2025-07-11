@@ -21,7 +21,8 @@ su -c ./optimizer_root.sh
 - Detailed logs saved to `/sdcard/AndroidOptimizer.log`
 
 ## **2. ADB Version (Brevent)**
- -Android 11+ or External device for activation
+- Android 11+ or External device for activation
+ 
 ### **Installation Method**
 1. Manual download:
    - Visit: https://github.com/ElxSnowkk/Shell-optimization-for-Android
