@@ -8,10 +8,8 @@ echo "##       Rootless version - Requires ADB            ##"
 echo "#######################################################"
 echo ""
 
-# Settings
 LOG_FILE="/sdcard/AndroidOptimizerADB.log"
 PROTECTED_APPS="
-# Essential Google Services
 com.google.android.gms
 com.google.android.gsf
 com.android.vending
@@ -19,30 +17,23 @@ com.google.android.syncadapters.contacts
 com.google.android.backuptransport
 com.google.android.onetimeinitializer
 com.google.android.partnersetup
-
-# Communication
 com.whatsapp
 com.instagram.android
-cocomm.facebook.katana
+com.facebook.katana
 com.facebook.orca
 org.telegram.messenger
 com.signal
 com.discord
-
-# Banking/Finance
 com.bankinter.launcher
 com.lacaixa.mobile.android.newwapicon
 com.bbva.bbvacontigo
 com.santander.app
 com.paypal.android.p2pmobile
-
-# System Apps
 com.android.phone
 com.android.settings
 com.android.systemui
 "
 
-# Report variables
 OPTIMIZED_APPS=""
 BLOAT_REMOVED=""
 GAMES_OPTIMIZED=""
@@ -51,21 +42,17 @@ STORAGE_FREED=""
 MEMORY_FREED=""
 BACKGROUND_KILLED=""
 
-# Logging function
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a $LOG_FILE
 }
 
-# Protected app check
 is_protected() {
   echo "$PROTECTED_APPS" | grep -q "$1"
 }
 
-# 1. Storage Cleaning (ADB)
 clean_storage() {
   log "🧹 STARTING STORAGE CLEANING (ADB)"
   
-  # App cache cleaning
   total_apps=0
   for pkg in $(pm list packages | cut -d':' -f2); do
     if ! is_protected "$pkg"; then
@@ -83,18 +70,15 @@ clean_storage() {
     fi
   done
   
-  # General cache cleaning
   rm -rf /data/local/tmp/* 2>/dev/null
   rm -rf /sdcard/DCIM/.thumbnails/* 2>/dev/null
   
   log "✅ CLEANING COMPLETE - $total_apps apps processed"
 }
 
-# 2. Memory Management (ADB)
 manage_memory() {
   log "🧠 OPTIMIZING MEMORY (ADB)"
   
-  # Kill background apps
   background_count=0
   for pkg in $(pm list packages -3 | cut -d':' -f2); do
     if ! is_protected "$pkg"; then
@@ -104,32 +88,18 @@ manage_memory() {
     fi
   done
   
-  # Limit background processes
   settings put global background_process_limit 3
   
-  # Memory status
   mem_info=$(dumpsys meminfo | grep "Free RAM:" | awk '{print $3}')
   MEMORY_FREED="${mem_info:-N/A}"
   
   log "✅ MEMORY OPTIMIZED - $background_count apps killed"
 }
 
-# 3. Bloatware Removal (ADB)
 debloat_system() {
   log "🗑️ REMOVING BLOATWARE (ADB)"
   
   bloat_list="
-  # Bloat original
-  com.facebook.system com.facebook.appmanager
-  com.miui.analytics com.xiaomi.mipicks
-  com.google.android.apps.turbo com.android.wallpaperbackup
-  com.samsung.android.bixby.agent com.samsung.android.game.gos
-  com.huawei.android.hwpay com.huawei.hwid
-  com.oppo.oppopowermonitor com.oppo.engineermode
-  com.vivo.browser com.vivo.assistant
-  com.realme.wellbeing com.oneplus.brickmode
-
-  # Nova lista de bloatware
   android.auto_generated_characteristics_rro
   android.auto_generated_rro_product__
   android.auto_generated_rro_vendor__
@@ -363,6 +333,7 @@ debloat_system() {
   
   removed_count=0
   for pkg in $bloat_list; do
+    [ -z "$pkg" ] && continue
     if pm list packages | grep -q "$pkg"; then
       if ! is_protected "$pkg"; then
         if pm disable-user --user 0 "$pkg" >/dev/null 2>&1; then
@@ -380,7 +351,6 @@ debloat_system() {
   log "✅ BLOATWARE REMOVED - $removed_count items disabled"
 }
 
-# 4. Gaming Optimization (ADB)
 optimize_gaming() {
   log "🎮 GAMING OPTIMIZATION (ADB)"
   
@@ -403,25 +373,18 @@ optimize_gaming() {
   log "✅ GAMING OPTIMIZED"
 }
 
-# 5. System Tweaks (ADB)
 system_tweaks() {
   log "⚙️ APPLYING SYSTEM TWEAKS (ADB)"
   
-  # Performance improvements
   settings put global window_animation_scale 0.5
   settings put global transition_animation_scale 0.5
   settings put global animator_duration_scale 0.5
-  
-  # Network and background
   settings put global restricted_device_performance 1
-  
-  # Battery saving
   settings put global adaptive_battery_management_enabled 1
   
   log "✅ TWEAKS APPLIED"
 }
 
-# 6. Generate Report
 generate_report() {
   echo ""
   echo "#######################################################"
@@ -446,9 +409,7 @@ generate_report() {
   echo "#######################################################"
 }
 
-# Execute optimizations
 {
-  echo "Starting ADB optimizations..."
   clean_storage
   manage_memory
   debloat_system
